@@ -22,8 +22,12 @@ class Hosts(Enum):
 
 class State(Enum):
     DISABLE = 0
+    OFF = 0
     ENABLE = 1
+    ON = 1
     TOGGLE = 2
+    TGL = 2
+    T = 2
 
 class HubTool:
 
@@ -35,8 +39,8 @@ class HubTool:
     def parse_arguments(self, args):
 
         port_setter = self._subparser.add_parser("port")
-        port_setter.add_argument("port", help="Port to enable/disable", type=int, metavar='portNum', choices={0, 1, 2, 3, 4, 5, 6, 7})
         port_setter.add_argument("state", help="Enable/Disable/Toggle", type=lambda x: State[x.upper()], metavar='portState')
+        port_setter.add_argument("port", help="Port to enable/disable", type=int, nargs="+", metavar='portNum', choices={0, 1, 2, 3, 4, 5, 6, 7})
         port_setter.set_defaults(func=self.handle_port)
 
         upstream_conf = self._subparser.add_parser("upstream")
@@ -62,20 +66,23 @@ class HubTool:
         if stem is None:
             return HubToolStatus.NO_STEM
 
-        if args.state.value == State.TOGGLE.value:
-            cur_state = stem.usb.getPortState(args.port)
-            if cur_state.error != 0:
-                return HubToolStatus.STEM_ERROR
-            if cur_state.value == 0:
-                args.state = State.ENABLE
-            else:
-                args.state = State.DISABLE
-
         result = None
-        if args.state.value == State.ENABLE.value:
-            result = stem.usb.setPortEnable(args.port)
-        elif args.state.value == State.DISABLE.value:
-            result = stem.usb.setPortDisable(args.port)
+        for port in args.port:
+            if args.state.value == State.TOGGLE.value:
+                cur_state = stem.usb.getPortState(port)
+                if cur_state.error != 0:
+                    return HubToolStatus.STEM_ERROR
+                if cur_state.value == 0:
+                    args.state = State.ENABLE
+                else:
+                    args.state = State.DISABLE
+
+            print(f"{args.state.name[:-1].lower().capitalize()}ing port {port}")
+
+            if args.state.value == State.ENABLE.value:
+                result = stem.usb.setPortEnable(port)
+            elif args.state.value == State.DISABLE.value:
+                result = stem.usb.setPortDisable(port)
 
         if result == 0:
             return HubToolStatus.SUCCESS
